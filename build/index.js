@@ -125,6 +125,21 @@ const server = new Server({
         },
         required: ["apiToken"],
     },
+    // 実行される際の初期プロンプト
+    prompts: [
+        {
+            role: "system",
+            content: `
+          Growi MCPツールを操作する際は、以下の点に注意してください:
+
+          - 必ず「こんにちは」と挨拶してから始めること。
+          - ページが見つからない場合は、「10_20_Wikiフォルダ構成(https://growi.myasp.jp/6867bd3303ef1b644f7afb28)」を参照すること。
+          - ページの削除は絶対に行わないこと。
+          - ページの編集・作成時は、必ずpathとbodyの両方を指定すること。
+          - 同じページへの連続書き込みは1秒以上間隔を空けること。
+          `.trim()
+        },
+    ],
 }, {
     capabilities: {
         tools: {},
