@@ -27,6 +27,47 @@ async function fetchGrowiPages(apiToken) {
     }
 }
 /**
+ * 指定IDのGrowiページ本文を取得
+ */
+async function fetchGrowiPageBodyById(id, apiToken) {
+    try {
+        const url = `${GROWI_API_BASE}/page?pageId=${id}`;
+        const res = await fetch(url, {
+            headers: {
+                Authorization: `Bearer ${apiToken}`,
+                Accept: "application/json",
+            },
+        });
+        if (!res.ok) {
+            return { ok: false, error: `HTTP error! status: ${res.status}` };
+        }
+        const data = await res.json();
+        if (data.ok === false) {
+            return { ok: false, error: data.error || "Growi API returned ok: false" };
+        }
+        if (!data.page) {
+            return { ok: false, error: "ページが存在しません" };
+        }
+        if (data.page.revision && typeof data.page.revision.body === "string") {
+            return { ok: true, body: data.page.revision.body };
+        }
+        else {
+            return { ok: false, error: "本文が取得できませんでした" };
+        }
+    }
+    catch (error) {
+        if (error && error.response && typeof error.response.text === "function") {
+            const text = await error.response.text();
+            console.error("Error fetching Growi page body by id:", error, text);
+            return { ok: false, error: (error?.message || String(error)) + " | body: " + text };
+        }
+        else {
+            console.error("Error fetching Growi page body by id:", error);
+            return { ok: false, error: error?.message || String(error) };
+        }
+    }
+}
+/**
  * 指定パスのGrowiページ本文を取得
  */
 async function fetchGrowiPageBody(path, apiToken) {
@@ -192,6 +233,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     required: ["path"],
                 },
             },
+            {
+                name: "get_page_by_id",
+                description: "指定したIDのGrowiページ本文を取得します",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        id: { type: "string", description: "取得したいページのID" },
+                    },
+                    required: ["id"],
+                },
+            },
         ],
     };
 });
@@ -312,6 +364,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request, context) => {
             };
         }
         const result = await fetchGrowiPageBody(path, apiToken);
+        if (result.ok) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: result.body ?? "",
+                    },
+                ],
+            };
+        }
+        else {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `ページ本文の取得に失敗しました: ${result.error || "不明なエラー"}`,
+                    },
+                ],
+            };
+        }
+    }
+    else if (request.params.name === "get_page_by_id") {
+        const { id } = request.params.arguments;
+        if (!id) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `idが必要です\nrequest.params: ${JSON.stringify(request.params)}`,
+                    },
+                ],
+            };
+        }
+        const result = await fetchGrowiPageBodyById(id, apiToken);
         if (result.ok) {
             return {
                 content: [
